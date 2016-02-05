@@ -1,0 +1,518 @@
+<!doctype html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>::: todoReact :::</title>
+  <meta name="description" content="My Parse App">
+  <meta name="viewport" content="width=device-width">
+  <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/css/default.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div id="AllDetails"></div>
+  </div>
+  <script src="assets/js/vendor/jquery.min.js"></script>
+  <script src="assets/js/vendor/bootstrap.min.js"></script>
+  <script src="assets/js/vendor/jquery.validate.min.js"></script>
+  <script type="text/javascript" src="http://www.parsecdn.com/js/parse-latest.js"></script>
+  <script src="assets/js/vendor/react.js"></script> 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.24/browser.min.js"></script>
+<script>
+
+
+var TodoEvent = {
+  subscribers:{
+  },
+  unsubscribe:function(type,func){
+    if (typeof this.subscribers[type] == 'undefined'){
+      return;
+    } 
+    for(var idx = 0;idx < this.subscribers[type].length;idx++) {
+      if (this.subscribers[type][idx] == func) {
+        this.subscribers[type].splice(idx,1);
+      }
+    }
+  },
+  haveSubscribers:function(type){
+    if (typeof this.subscribers[type] == 'undefined'){
+      return false;
+    } 
+    return this.subscribers[type].length > 0;
+  },
+  removeSubscribers:function(type){
+    if (typeof this.subscribers[type] == 'undefined'){
+      return;
+    } 
+    this.subscribers[type] = [];
+  },
+  subscribe:function(type,handler){
+    if (typeof this.subscribers[type] == 'undefined'){
+      this.subscribers[type] = []
+    } 
+    this.subscribers[type].push(handler);
+  },
+  fire:function(type,data){
+    var handlerList = this.subscribers[type];
+    if (!handlerList ) {
+      return;
+    }
+    for(var idx =0;idx < handlerList.length;idx++){
+      if (handlerList[idx]){
+        handlerList[idx](data); 
+      }
+    }
+  }
+}
+
+var TaskMgr = function(NameItem){
+  Parse.initialize("BBMqeRItWiaXSHKfAM6fdLZBM6qR9R9t5FaKIQNR", "0p0WMXUReq1AhEikjAS6o8rWj0f0WkL40K81Xkdb");
+  var Box = Parse.Object.extend(NameItem);
+   var query = new Parse.Query(Box);
+   var box = new Box();
+   //var boxGroup= new Box();
+
+  this.createGroup = function(){
+    var values = {};
+    var formGroupArr = $('form#formBoxGroup').serializeArray();
+    $.each(formGroupArr,function(i,field){
+      values[field.name] = field.value;
+      //alert(values[field.name]+":"+field.value)
+    })
+    query.find({
+      success: function(results){
+        for(i in results){
+          var TitleDB = results[i].get('heading');
+          var TitleEntered = $('#boxGroup').val();
+          console.log(TitleDB+":"+TitleEntered);
+
+          if(TitleEntered == TitleDB){
+            alert("Can't Insert");
+            return false;
+          }
+        }
+
+        box.set();
+        box.set('heading',values.boxGroup);
+        box.save({
+          success: function(object){
+            //alert('success');
+            console.log("succes - Group Name is : "+values.boxGroup);
+            $("#formBoxGroup")[0].reset();
+            $('#sectionFormGrp').find( ".alert.alert-success" ).fadeIn( "slow", function() {});
+            //$( ".alert.alert-success" ).fadeIn( "slow", function() {});
+            TodoEvent.fire('reloading');
+           },
+          error: function(modal,error){
+            console.log("errr")
+          }
+        })
+      },
+      error: function(){}
+    });
+    
+  }
+
+  this.create = function(){
+    var values = {};
+    var formArr = $("form#formBox").serializeArray();
+    $.each(formArr, function(i, field){
+       values[field.name] = field.value;
+    });
+
+    console.log(values);
+    var boxLink = values.boxHeading.split(' ').join('');
+    query.include("boxGroup");
+    query.find({
+      success: function(results){
+        box.set();
+        box.set("heading",values.boxHeading);
+        box.set("description",values.boxDescription);
+        box.set("link_group",values.dropdownValue);
+        box.set("link",boxLink);
+        box.save({
+          success: function(object){
+            console.log("success - List Title is : "+values.boxHeading);
+            $("#formBox")[0].reset();
+            $('#sectionForm').find( ".alert.alert-success" ).fadeIn( "slow", function() {});
+            //$( ".alert.alert-success" ).fadeIn( "slow", function() {});
+             TodoEvent.fire('reload_list');
+          },
+          error: function(modal,error){
+            console.log("errr")
+          }
+        })
+      },
+      error:function(){
+
+      }
+    })
+    
+  }
+
+  this.update = function(id,updatedObj,cb){
+    query.get(id, {
+        success: function(object) {
+            for (var x in updatedObj){
+              object.set(x, updatedObj[x]);
+            }
+            object.save();
+            if(cb){
+              //var msg = ;
+              cb("success");
+
+            }
+        },
+        error: function(error) {
+            if(cb){ 
+              cb('error');
+            }
+            console.log("An error occured :(");
+        }
+    });
+  }
+
+  this.remove = function(){
+
+  }
+
+  this.fetch = function(cb){
+    query.find({
+      success:function(results){
+        if(cb){
+          cb(results);
+        }
+      },
+      error:function(){
+      }
+    })
+  }
+}
+
+var taskMgr = new TaskMgr('Box');
+var taskGroupMgr = new TaskMgr('BoxGroup');
+//taskMgr.fetch();
+</script>
+
+<script type="text/babel">
+  var AllDetails = React.createClass({
+    render: function() {
+      return (
+        <div>
+          <SectionFormGroup />
+          <SectionForm />
+          <SectionBoxAll />
+        </div>
+      );
+    }
+  });
+
+  var SectionFormGroup = React.createClass({
+    handleGroup:function(){
+      //taskMgr.saveGroup();
+      //alert();
+    },
+    componentDidMount: function() {
+      $("#formBoxGroup").validate({
+        // Specify the validation rules
+        rules: {
+            boxGroup: "required"
+        },
+        // Specify the validation error messages
+        messages: {
+            boxGroup: "Please enter Heading"
+        },
+        
+        submitHandler: function(form) {
+            //form.submit();
+           taskGroupMgr.createGroup();
+        }
+      });
+    },
+    render: function() {
+      return (
+        <div className="row" id="sectionFormGrp">
+          <div className="col-xs-12 section-form">
+            <h2>Enter Group Name or <a href="#sectionForm" className="go-post">Skip</a></h2>
+            <form action="javascript:void(0)"  id="formBoxGroup" className="form-horizontal" type="post">
+              <div className="form-group">
+                <input type="text" className="form-control" name="boxGroup" id="boxGroup" placeholder="Enter Group Name from list or Enter New Group Name" />
+              </div>
+              <div className="form-group">
+                <button type="submit" className="btn btn-primary">Post Group !</button>
+              </div>
+            </form>
+            <div className="alert alert-success" role="alert" style={{"display":"none"}}>
+              <a href="#" className="close" data-dismiss="alert" aria-label="close">&times;</a>
+              Group Name Placed Successfully
+            </div>
+          </div>
+        </div>
+      );
+    }
+  
+  });
+
+  var SectionForm = React.createClass({
+    getInitialState: function() {
+      return {
+        resultsGrp: [],
+        resultDataGrp : []
+      };
+    },
+    handleSubmit: function(){
+        
+    },
+    componentDidMount: function() {
+      var self = this;
+      TodoEvent.subscribe('reloading',function(){
+        taskGroupMgr.fetch(function(resultsGrp){
+          var resultDataGrp = [];
+          resultsGrp.map(function(itemGrp){
+            resultDataGrp.push(<GroupItem itemGrp={itemGrp.toJSON()}/>);
+          });
+          self.setState({resultDataGrp:resultDataGrp});
+          TodoEvent.fire('refreshlist');
+        });
+      });
+      TodoEvent.fire('reloading');
+
+      // Validation
+      $("#formBox").validate({
+        rules: {
+            boxHeading: "required",
+            boxDescription: "required"
+        },
+        messages: {
+            boxHeading: "Please enter Heading",
+            boxDescription: "Please enter Description",
+        },
+        submitHandler: function(form) {
+            //form.submit();
+            taskMgr.create();
+        }
+      });
+    },
+    render: function() {
+      return (
+        <div className="row" id="sectionForm">
+            <div className="col-xs-12 section-form">
+              <h2>Enter post details</h2>
+              <form action="javascript:void(0)"  id="formBox" className="form-horizontal" type="post">
+                <div className="form-group">
+                  <div className="dropdown">
+                    <button className="btn btn-default dropdown-toggle" type="button" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                      Dropup 
+                      <span className="caret"></span>
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="dropdownMenu2">
+                      {this.state.resultDataGrp}
+                    </ul>
+                  </div>
+                  <input type="hidden" id="dropdownValue" name="dropdownValue" value="" />
+                </div>
+                <div className="form-group">
+                  <input type="text" className="form-control" name="boxHeading" id="boxHeading" placeholder="Enter Heading" />
+                </div>
+                <div className="form-group">
+                   <textarea className="form-control" name="boxDescription" id="boxDescription" placeholder="Enter Description"></textarea>
+                </div>
+                <div className="form-group">
+                  <button type="submit" className="btn btn-primary">Post this !</button>
+                </div>
+              </form>
+              <div className="alert alert-success" role="alert" style={{"display":"none"}}>
+                <a href="#" className="close" data-dismiss="alert" aria-label="close">&times;</a>
+               Form Submitted Successfully
+              </div>
+            </div>
+          </div>
+      );
+    }
+  });
+  
+  var GroupItem = React.createClass({
+    componentDidMount: function() {
+       $(".dropdown-menu li a").click(function(e){
+        $(this).parents(".dropdown").find('.btn').html($(this).text() + ' <span class="caret"></span>');
+        //$(this).parents(".dropdown").find('.btn').val($(this).data('value'));
+        $('#dropdownValue').val($(this).text());
+      });
+    },
+    render: function() {
+      var itemGrp = this.props.itemGrp;
+      return (
+        <li>
+          <a href="javascript:void(0)">{itemGrp.heading}</a>
+        </li>
+      );
+    }
+  });
+
+  var SectionBoxAll = React.createClass({
+    getInitialState: function() {
+      return {
+        resultData: []
+      };
+    },
+    componentDidMount: function() {
+      var resultData = [];
+      var self = this;
+      TodoEvent.subscribe('refreshlist',function(){
+        taskGroupMgr.fetch(function(resultsGrp){
+          var resultDataGrp = [];
+          resultsGrp.map(function(itemGrp){
+            //itemGrp={itemGrp.toJSON()}
+            resultDataGrp.push(<GroupItemShow itemGrp={itemGrp.toJSON()} />);
+          });
+          self.setState({resultDataGrp:resultDataGrp});
+        });
+      });
+      TodoEvent.fire('refreshlist');
+      TodoEvent.subscribe('reload_list',function(){
+         taskMgr.fetch(function(results){
+          results.map(function(item){
+            resultData.push(<Box item={item.toJSON()} key={item.id}  />)
+          });
+          self.setState({resultData:resultData});
+        });
+       });
+     TodoEvent.fire('reload_list');
+    },
+    render: function() {
+      return (
+        <div>
+          <div className="row">
+            <div className="col-xs-12 section-box-group">
+              <h2>Select the Group name to show its post</h2>
+              <ul className="list-inline">
+                {this.state.resultDataGrp}
+              </ul>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-xs-12 section-box">
+              <h3>The post are as follows </h3>
+              <div className="row">
+                <div className="col-xs-12 section-box-columns">
+                  {this.state.resultData}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  });
+  
+  var GroupItemShow = React.createClass({
+    handleGroup: function(evt){
+      //alert(evt.target.firstChild.nodeValue);
+      TodoEvent.fire('activateTaskList',evt.target.firstChild.nodeValue);
+    },
+    render: function() {
+      var itemGrp = this.props.itemGrp;
+      return (
+        <li><a href="javascript:void(0)" onClick={this.handleGroup}>{itemGrp.heading}</a></li>
+      );
+    }
+  });
+  
+
+  var Box = React.createClass({
+    getInitialState: function() {
+      return {
+        canEdit: false,
+        styleClass: 'hidden',
+        msg : "",
+        grpId:''
+      };
+    },
+    handleEdit:function(e){
+      var self = this;
+      TodoEvent.fire('MakeEditable',self.props.item.objectId);
+    },
+    handleUpdate:function(){
+      var self = this;
+      var id = this.props.item.objectId;
+      var updatedObj = {};
+      updatedObj.heading = self.refs.itemHead.getDOMNode().textContent;
+      updatedObj.description = self.refs.desc.getDOMNode().textContent;
+      taskMgr.update(id,updatedObj,function(msg){
+        self.setState({msg: msg});
+      });
+    },
+    componentDidMount: function() {
+      var self = this;
+      TodoEvent.subscribe('MakeEditable',function(id){
+        if(id == self.props.item.objectId){
+          self.setState({canEdit:true, styleClass:'visible',msg:''});
+          setTimeout(function(){
+            $(React.findDOMNode(self.refs.itemHead)).focus();
+          },50);
+        }else{
+          self.setState({canEdit:false, styleClass:'hidden'});
+        }
+      })
+
+      TodoEvent.subscribe('activateTaskList',function(grpID){
+        self.setState({grpId:grpID});
+      })
+    },
+    render: function() {
+      var item = this.props.item;
+      //alert(this.props.groupname);
+      //alert(this.props.item.link_group);
+      var activeTask  = '';
+      if(this.state.grpId == '' || this.state.grpId == item.link_group){
+        activeTask = ''
+      }else{
+        activeTask = 'hidden'
+      }
+
+      return (
+        <div className={"col-xs-4 "+ activeTask}>
+          <div className="panel panel-default box">
+            <div className="panel-heading">
+              <h3 contentEditable={this.state.canEdit} ref="itemHead">{item.heading}</h3>
+              <span className="group-name">
+                {item.link_group}
+              </span>
+              <button className="btn btn-link" onClick={this.handleEdit}>
+                <i className="glyphicon glyphicon-pencil" />
+              </button>
+              <button className="btn btn-link">
+                <i className="glyphicon glyphicon-remove" />
+              </button>
+            </div>
+            <div className="panel-body">
+              <p ref="desc" contentEditable={this.state.canEdit}>{item.description}</p>
+            </div>
+            <div className="panel-footer">
+              <button className={this.state.styleClass+" btn btn-default"} onClick={this.handleUpdate}>update</button>
+              <span className={"icon "+ this.state.styleClass}>{this.state.msg}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  });
+  React.render( <AllDetails />, document.getElementById('AllDetails'))
+</script>
+<script>
+  $('window').load(function(){
+    $('.go-post').on('click',function(){
+      alert();
+     
+    })
+  })
+  /*$('.go-post').on('click',function(){
+    alert()
+    $('html,body').animate({
+      scrollTop: $('#sectionForm').offset.top
+    },2000)
+  })*/
+</script>
+</body>
+
+</html>
